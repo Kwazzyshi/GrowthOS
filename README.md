@@ -143,9 +143,6 @@ This app is deployed on **Vercel**. To deploy your own instance:
 
 ---
 
-## 👥 Team
-
-Built with ❤️ at NMIMS INNOVATHON 2026
 
 ---
 
