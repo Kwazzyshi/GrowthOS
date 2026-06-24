@@ -1,0 +1,135 @@
+@import url('https://fonts.googleapis.com/css2?family=Instrument+Serif:ital,wght@0,400;1,400&family=Inter:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=JetBrains+Mono:wght@300;400;500;600;700&display=swap');
+@import "tailwindcss";
+
+:root {
+  --color-atelier-bg-val: #F7F4F0;
+  --color-atelier-surface-val: #ffffff;
+  --color-atelier-surface-dim-val: #EAE5DD;
+  --color-espresso-val: #1A1A1A;
+  --color-warm-brown-val: #4A4A4A;
+  --color-muted-taupe-val: #7A756E;
+  --color-atelier-blue-val: #2A3B50;
+  --color-atelier-accent-gold-val: #B38F62;
+  
+  --color-glass-bg: rgba(255, 255, 255, 0.8);
+  --color-glass-border: rgba(26, 26, 26, 0.08);
+  --color-glass-nav: rgba(247, 244, 240, 0.85);
+  --color-grid-line-1: rgba(26, 26, 26, 0.03);
+  --color-grid-line-2: rgba(26, 26, 26, 0.05);
+}
+
+.dark {
+  --color-atelier-bg-val: #121110;
+  --color-atelier-surface-val: #1C1A18;
+  --color-atelier-surface-dim-val: #2A2623;
+  --color-espresso-val: #F7F4F0;
+  --color-warm-brown-val: #C5BFB6;
+  --color-muted-taupe-val: #A29C93;
+  --color-atelier-blue-val: #7AA2D0;
+  --color-atelier-accent-gold-val: #D4AF37;
+
+  --color-glass-bg: rgba(28, 26, 24, 0.85);
+  --color-glass-border: rgba(247, 244, 240, 0.08);
+  --color-glass-nav: rgba(18, 17, 16, 0.85);
+  --color-grid-line-1: rgba(247, 244, 240, 0.04);
+  --color-grid-line-2: rgba(247, 244, 240, 0.06);
+}
+
+@theme {
+  --font-sans: "Helvetica Neue", "Arial", "Inter", sans-serif;
+  --font-serif: "Georgia", "Instrument Serif", serif;
+  --font-mono: "Courier New", Courier, monospace;
+  
+  --color-atelier-bg: var(--color-atelier-bg-val);
+  --color-atelier-surface: var(--color-atelier-surface-val);
+  --color-atelier-surface-dim: var(--color-atelier-surface-dim-val);
+  --color-espresso: var(--color-espresso-val);
+  --color-warm-brown: var(--color-warm-brown-val);
+  --color-muted-taupe: var(--color-muted-taupe-val);
+  --color-atelier-blue: var(--color-atelier-blue-val);
+  --color-atelier-accent-gold: var(--color-atelier-accent-gold-val);
+  
+  --animate-marquee: marquee 35s linear infinite;
+  --animate-marquee-reverse: marquee-reverse 35s linear infinite;
+  --animate-glow: glow 3s ease-in-out infinite alternate;
+  --animate-grid-fade: grid-fade 1.5s ease-out forwards;
+
+  @keyframes marquee {
+    0% { transform: translateX(0%); }
+    100% { transform: translateX(-50%); }
+  }
+  @keyframes marquee-reverse {
+    0% { transform: translateX(-50%); }
+    100% { transform: translateX(0%); }
+  }
+  @keyframes glow {
+    0% { box-shadow: 0 0 10px rgba(26, 26, 26, 0.1); }
+    100% { box-shadow: 0 0 25px rgba(26, 26, 26, 0.25); }
+  }
+  @keyframes grid-fade {
+    0% { opacity: 0; }
+    100% { opacity: 0.15; }
+  }
+}
+
+/* Custom fine line grid styling referencing Sandra Creates high-end portfolio backgrounds */
+.atelier-grid {
+  background-size: 60px 60px;
+  background-image: 
+    linear-gradient(to right, var(--color-grid-line-1) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--color-grid-line-1) 1px, transparent 1px);
+}
+
+.atelier-grid-thick {
+  background-size: 120px 120px;
+  background-image: 
+    linear-gradient(to right, var(--color-grid-line-2) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--color-grid-line-2) 1px, transparent 1px);
+}
+
+/* Glassmorphism utility with subtle inner border to simulate crystal edges */
+.glass-card {
+  background: var(--color-glass-bg);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--color-glass-border);
+  box-shadow: 0 20px 40px rgba(26, 26, 26, 0.03);
+}
+
+.glass-nav {
+  background: var(--color-glass-nav);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--color-glass-border);
+}
+
+/* Elegant scrollbar styling */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: var(--color-atelier-bg-val);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-atelier-surface-dim-val);
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-warm-brown-val);
+}
+
+/* High-contrast selection */
+::selection {
+  background-color: #1A1A1A;
+  color: #F7F4F0;
+}
+
+/* Perspective styling for 3D card scroll effects */
+.perspective-container {
+  perspective: 1000px;
+}
+
+.preserve-3d {
+  transform-style: preserve-3d;
+}
