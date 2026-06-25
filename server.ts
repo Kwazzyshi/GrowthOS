@@ -1,58 +1,80 @@
-import express from "express";
-import path from "path";
-import dotenv from "dotenv";
 import { GoogleGenAI, Type } from "@google/genai";
-import { createServer as createViteServer } from "vite";
 
-// Load environment variables
-dotenv.config();
-
-// Ensure the application can execute fallback-free even if a key is not present immediately
-const apiKey = process.env.GEMINI_API_KEY;
-
-// Create lazy initialization wrapper for Google Gen AI
-let aiClient: GoogleGenAI | null = null;
-function getAiClient(): GoogleGenAI {
-  if (!aiClient) {
-    if (!process.env.GEMINI_API_KEY) {
-      throw new Error("GEMINI_API_KEY environment variable is not configured in Secrets panel.");
-    }
-    aiClient = new GoogleGenAI({
-      apiKey: process.env.GEMINI_API_KEY,
-      httpOptions: {
-        headers: {
-          'User-Agent': 'aistudio-build',
-        }
-      }
-    });
-  }
-  return aiClient;
+export interface Env {
+  GEMINI_API_KEY: string;
 }
 
-async function startServer() {
-  const app = express();
-  const PORT = 3000;
+// Set up a robust multi-model fallback list to handle transient high demand (503) errors gracefully
+const modelsToTry = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash"];
 
-  // Middleware to parse JSON payloads
-  app.use(express.json());
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-  // API: Health check endpoint
-  app.get("/api/health", (req, res) => {
-    res.json({ status: "ok", time: new Date().toISOString() });
+function corsHeaders(): Record<string, string> {
+  return {
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type",
+  };
+}
+
+function jsonResponse(data: any, status = 200): Response {
+  return new Response(JSON.stringify(data), {
+    status,
+    headers: {
+      ...corsHeaders(),
+      "Content-Type": "application/json",
+    },
   });
+}
 
-  // API: Robust AI Campaign/Caption Generator proxies request securely using server-side key
-  app.post("/api/generate-captions", async (req, res) => {
+function getAiClient(apiKey: string): GoogleGenAI {
+  if (!apiKey) {
+    throw new Error("GEMINI_API_KEY is not configured.");
+  }
+  return new GoogleGenAI({
+    apiKey,
+    httpOptions: {
+      headers: {
+        "User-Agent": "aistudio-build",
+      },
+    },
+  });
+}
+
+async function handleAPI(request: Request, url: URL, env: Env): Promise<Response> {
+  const path = url.pathname;
+
+  // Handle preflight OPTIONS request
+  if (request.method === "OPTIONS") {
+    return new Response(null, {
+      status: 200,
+      headers: corsHeaders(),
+    });
+  }
+
+  // Health endpoint
+  if (path === "/api/health") {
+    return jsonResponse({ status: "ok", time: new Date().toISOString() });
+  }
+
+  // Ensure request has API key
+  const apiKey = env.GEMINI_API_KEY;
+  if (!apiKey) {
+    return jsonResponse({ error: "GEMINI_API_KEY is not configured in the worker environment." }, 500);
+  }
+
+  // POST: Generate captions
+  if (path === "/api/generate-captions" && request.method === "POST") {
     try {
-      const { prompt, tone, channel, culturalIq } = req.body;
-      
+      const body: any = await request.json();
+      const { prompt, tone, channel, culturalIq } = body;
+
       if (!prompt) {
-        return res.status(400).json({ error: "Instruction prompt is required." });
+        return jsonResponse({ error: "Instruction prompt is required." }, 400);
       }
 
-      const client = getAiClient();
+      const client = getAiClient(apiKey);
 
-      // Formulate detailed, editorial rules to shape the model's creative behavior
       let toneGuide = "";
       const normalizedTone = (tone || "").toLowerCase();
       if (normalizedTone === "minimal" || normalizedTone === "minimalist") {
@@ -67,7 +89,7 @@ async function startServer() {
         toneGuide = "Refined, premium editorial design style.";
       }
 
-      const culturalContext = culturalIq 
+      const culturalContext = culturalIq
         ? "Crucially, incorporate deep Indian cultural IQ. Seamlessly weave in local references, regional vernacular idioms (e.g., words like 'Diya', 'Swadeshi', 'Zari', 'Charkha' or season names), and regional craft heritage (like mud terracotta, handloom weaving, or plant-based block dyeing) depending on the user topic."
         : "Focus on standard premium lifestyle and design narratives.";
 
@@ -83,15 +105,10 @@ async function startServer() {
         Ensure your generated output adheres strictly to the provided JSON schema constraints. Never output surrounding markdown wrappers.
       `;
 
-      // Set up a robust multi-model fallback list to handle transient high demand (503) errors gracefully
-      const modelsToTry = ["gemini-3.5-flash", "gemini-flash-latest", "gemini-3.1-flash-lite"];
       let response = null;
       let lastError: any = null;
 
-      const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
-
       for (const modelName of modelsToTry) {
-        // Try up to 2 times per model to handle temporary spikes
         for (let attempt = 1; attempt <= 2; attempt++) {
           try {
             console.log(`Attempting caption generation with model: ${modelName} (Attempt ${attempt}/2)`);
@@ -130,7 +147,7 @@ async function startServer() {
                 }
               }
             });
-            
+
             if (response) {
               console.log(`Successfully generated content using model: ${modelName}`);
               break;
@@ -139,7 +156,6 @@ async function startServer() {
             console.warn(`Model ${modelName} attempt ${attempt} failed. Error:`, err.message || err);
             lastError = err;
             if (attempt < 2) {
-              console.log(`Waiting 1000ms before retrying ${modelName}...`);
               await sleep(1000);
             }
           }
@@ -159,23 +175,25 @@ async function startServer() {
       }
 
       const resultData = JSON.parse(responseText.trim());
-      res.json(resultData);
+      return jsonResponse(resultData);
 
     } catch (error: any) {
-      console.error("Gemini API server-side failure:", error);
-      res.status(500).json({ error: error.message || "An error occurred during Gemini processing." });
+      console.error("Gemini API worker-side failure:", error);
+      return jsonResponse({ error: error.message || "An error occurred during Gemini processing." }, 500);
     }
-  });
+  }
 
-  // API: Analyze Social Media Link Audit
-  app.post("/api/analyze-social", async (req, res) => {
+  // POST: Analyze social URL
+  if (path === "/api/analyze-social" && request.method === "POST") {
     try {
-      const { url, additionalInfo } = req.body;
+      const body: any = await request.json();
+      const { url, additionalInfo } = body;
+
       if (!url) {
-        return res.status(400).json({ error: "Social media URL is required." });
+        return jsonResponse({ error: "Social media URL is required." }, 400);
       }
 
-      const client = getAiClient();
+      const client = getAiClient(apiKey);
 
       const systemInstruction = `
         You are GrowthOS Social Auditor—a world-class social media performance auditor, creative brand strategist, and elite design critic.
@@ -187,11 +205,8 @@ async function startServer() {
         Ensure your response is valid JSON matching the schema provided. No markdown code blocks.
       `;
 
-      const modelsToTry = ["gemini-3.5-flash", "gemini-flash-latest", "gemini-3.1-flash-lite"];
       let response = null;
       let lastError: any = null;
-
-      const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
       for (const modelName of modelsToTry) {
         for (let attempt = 1; attempt <= 2; attempt++) {
@@ -248,6 +263,7 @@ async function startServer() {
                 }
               }
             });
+
             if (response) {
               console.log(`Successfully generated social audit using model: ${modelName}`);
               break;
@@ -256,7 +272,6 @@ async function startServer() {
             console.warn(`Model ${modelName} social audit attempt failed:`, err.message || err);
             lastError = err;
             if (attempt < 2) {
-              console.log("Waiting 1000ms before social audit retry...");
               await sleep(1000);
             }
           }
@@ -276,24 +291,20 @@ async function startServer() {
       }
 
       const resultData = JSON.parse(responseText.trim());
-      res.json(resultData);
+      return jsonResponse(resultData);
 
     } catch (error: any) {
       console.error("Gemini social audit API failure:", error);
-      res.status(500).json({ error: error.message || "An error occurred during Gemini social audit." });
+      return jsonResponse({ error: error.message || "An error occurred during Gemini social audit." }, 500);
     }
-  });
+  }
 
-  // API: Generate calendar campaigns and events dynamically
-  app.post("/api/generate-calendar", async (req, res) => {
+  // POST: Generate calendar content
+  if (path === "/api/generate-calendar" && request.method === "POST") {
     try {
-      const { month, year, brandContext } = req.body;
-      const client = getAiClient();
-
-      const modelsToTry = ["gemini-3.5-flash", "gemini-flash-latest", "gemini-3.1-flash-lite"];
-      let response = null;
-      let lastError: any = null;
-      const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
+      const body: any = await request.json();
+      const { month, year, brandContext } = body;
+      const client = getAiClient(apiKey);
 
       const systemInstruction = `
         You are GrowthOS Cultural Calendar AI — a specialist in Indian festivals,
@@ -303,7 +314,7 @@ async function startServer() {
 
       const prompt = `
         Generate a social media content calendar for ${month} ${year}.
-        Brand context: ${brandContext || 'Premium Indian lifestyle and craft brand'}.
+        Brand context: ${brandContext || "Premium Indian lifestyle and craft brand"}.
         
         Include all major Indian festivals, national holidays, and cultural events 
         for this month. For each event, create a ready-to-use campaign concept.
@@ -311,6 +322,9 @@ async function startServer() {
         Also identify 8-10 additional content days (non-festival) with content ideas
         for consistent posting throughout the month.
       `;
+
+      let response = null;
+      let lastError: any = null;
 
       for (const modelName of modelsToTry) {
         for (let attempt = 1; attempt <= 2; attempt++) {
@@ -370,24 +384,23 @@ async function startServer() {
       if (!response) throw lastError || new Error("All models exhausted");
 
       const resultData = JSON.parse(response.text.trim());
-      res.json(resultData);
+      return jsonResponse(resultData);
 
     } catch (error: any) {
       console.error("Calendar generation error:", error);
-      res.status(500).json({ error: error.message || "Calendar generation failed" });
+      return jsonResponse({ error: error.message || "Calendar generation failed" }, 500);
     }
-  });
+  }
 
-  // API: Generate multi-channel festival campaigns dynamically
-  app.post("/api/generate-festival-campaign", async (req, res) => {
+  // POST: Generate festival campaign content
+  if (path === "/api/generate-festival-campaign" && request.method === "POST") {
     try {
-      const { festivalName, festivalDate, significance, themes, brandContext } = req.body;
-      const client = getAiClient();
+      const body: any = await request.json();
+      const { festivalName, festivalDate, significance, themes, brandContext } = body;
+      const client = getAiClient(apiKey);
 
-      const modelsToTry = ["gemini-3.5-flash", "gemini-flash-latest", "gemini-3.1-flash-lite"];
       let response = null;
       let lastError: any = null;
-      const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
 
       for (const modelName of modelsToTry) {
         for (let attempt = 1; attempt <= 2; attempt++) {
@@ -396,8 +409,8 @@ async function startServer() {
               model: modelName,
               contents: `Generate a complete multi-channel campaign for ${festivalName} (${festivalDate}). 
                 Festival significance: ${significance}. 
-                Brand context: ${brandContext || 'Premium Indian craft and lifestyle brand'}.
-                Key themes to explore: ${themes?.join(', ')}`,
+                Brand context: ${brandContext || "Premium Indian craft and lifestyle brand"}.
+                Key themes to explore: ${themes?.join(", ")}`,
               config: {
                 systemInstruction: `You are GrowthOS Festival Campaign AI. Create culturally authentic, 
                   non-generic Indian festival marketing campaigns. Return ONLY valid JSON.`,
@@ -442,37 +455,29 @@ async function startServer() {
       if (!response) throw lastError || new Error("All models exhausted");
 
       const resultData = JSON.parse(response.text.trim());
-      res.json(resultData);
+      return jsonResponse(resultData);
 
     } catch (error: any) {
       console.error("Festival campaign generation error:", error);
-      res.status(500).json({ error: error.message || "Festival campaign generation failed" });
+      return jsonResponse({ error: error.message || "Festival campaign generation failed" }, 500);
     }
-  });
-
-  // Vite middleware integration for development / Static file hosting for production
-  if (process.env.NODE_ENV !== "production") {
-    const vite = await createViteServer({
-      server: { middlewareMode: true },
-      appType: "spa",
-    });
-    app.use(vite.middlewares);
-    console.log("Vite development server middleware mounted.");
-  } else {
-    const distPath = path.join(process.cwd(), 'dist');
-    app.use(express.static(distPath));
-    // Serve client SPA router paths
-    app.get('*all', (req, res) => {
-      res.sendFile(path.join(distPath, 'index.html'));
-    });
-    console.log("Serving compiled static assets from /dist in production mode.");
   }
 
-  app.listen(PORT, "0.0.0.0", () => {
-    console.log(`Express server listening on http://localhost:${PORT}`);
-  });
+  // Not found
+  return jsonResponse({ error: `Not found: ${path}` }, 404);
 }
 
-startServer().catch((err) => {
-  console.error("Failed to start full-stack server:", err);
-});
+export default {
+  async fetch(request: Request, env: Env): Promise<Response> {
+    const url = new URL(request.url);
+
+    // Route API calls
+    if (url.pathname.startsWith("/api/")) {
+      return handleAPI(request, url, env);
+    }
+
+    // Default static assets handler (Wrangler Sites will override / handle this automatically,
+    // but in local development it is simulated or served by Vite).
+    return new Response("Not found in worker.", { status: 404 });
+  }
+};
