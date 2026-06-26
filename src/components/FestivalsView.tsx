@@ -94,17 +94,22 @@ export default function FestivalsView({ onSelectFestivalCampaign, onNavigateToTa
     setCopiedState(null);
     
     try {
-      const response = await fetch('/api/generate-festival-campaign', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          festivalName: festival.name,
-          festivalDate: festival.date,
-          significance: festival.significance,
-          themes: festival.themes,
-          brandContext: 'Premium Indian handloom and slow craft brand'
-        })
-      });
+      const response = await fetch(
+  'https://growthos.jatinbamola2006.workers.dev/api/generate-festival-campaign',
+  {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      festivalName: festival.name,
+      festivalDate: festival.date,
+      significance: festival.significance,
+      themes: festival.themes,
+      brandContext: 'Premium Indian handloom and slow craft brand'
+    })
+  }
+);
       
       if (!response.ok) throw new Error('Campaign generation failed');
       const data = await response.json();
