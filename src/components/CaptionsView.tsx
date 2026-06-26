@@ -60,16 +60,19 @@ export default function CaptionsView({ initialPrompt = '' }: CaptionsViewProps) 
     setCopied(false);
 
     try {
-      const response = await fetch('/api/generate-captions', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          prompt,
-          tone,
-          channel,
-          culturalIq,
-        }),
-      });
+     const response = await fetch(
+  'https://growthos.jatinbamola2006.workers.dev/api/generate-captions',
+  {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      prompt,
+      tone,
+      channel,
+      culturalIq,
+    }),
+  }
+);
 
       if (!response.ok) {
         throw new Error('Failed to generate. Please ensure GEMINI_API_KEY is configured in Secrets.');
