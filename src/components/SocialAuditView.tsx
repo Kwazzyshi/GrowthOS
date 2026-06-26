@@ -90,11 +90,19 @@ export default function SocialAuditView() {
     const loaderInterval = startLoaderAnimation();
 
     try {
-      const response = await fetch('/api/analyze-social', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url, additionalInfo }),
-      });
+     const response = await fetch(
+  'https://growthos.jatinbamola2006.workers.dev/api/analyze-social',
+  {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      url,
+      additionalInfo,
+    }),
+  }
+);
 
       clearInterval(loaderInterval);
 
