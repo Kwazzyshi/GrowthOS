@@ -31,15 +31,21 @@ export default function CalendarView({ onQuickCaptionGen, onNavigateToTab }: Cal
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch('/api/generate-calendar', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          month: currentMonth,
-          year: currentYear,
-          brandContext: 'Premium Indian lifestyle, handloom textiles, and slow craft brand'
-        })
-      });
+      const response = await fetch(
+  'https://growthos.jatinbamola2006.workers.dev/generate-calendar',
+  {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      month: currentMonth,
+      year: currentYear,
+      brandContext:
+        'Premium Indian lifestyle, handloom textiles, and slow craft brand',
+    }),
+  }
+);
       if (!response.ok) throw new Error('Calendar generation failed');
       const data = await response.json();
       setCalendarData(data);
