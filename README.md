@@ -378,6 +378,6 @@ This project was built for a hackathon demonstration. Feel free to fork, learn f
 
 <div align="center">
 
-**Built with ☕ and Gemini** · Made in India 🇮🇳
+**Built by Jatin.B ** · Made in India 🇮🇳
 
 </div>
