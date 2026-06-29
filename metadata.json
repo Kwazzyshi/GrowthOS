@@ -1,0 +1,6 @@
+{
+  "name": "GrowthOS",
+  "description": "An elegant, premium AI-powered Marketing Platform designed with the Atelier Editorial Style, complete with 3D scroll animations, infinite tickers, and server-side Gemini campaign planning.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
