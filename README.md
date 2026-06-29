@@ -19,7 +19,7 @@
 
 **GrowthOS** is a full-stack, zero-touch AI marketing studio built specifically for **Indian small and medium enterprises**. It combines Google Gemini's generative intelligence with deep Indian cultural IQ to automate social media content creation, festival campaign planning, content calendars, and social media brand audits — all wrapped in a premium, editorial-grade UI.
 
-> Built for a **24-hour hackathon** • Designed with the **Atelier Editorial Design System** • Powered by **Google Gemini**
+>  • Powered by **Google Gemini**
 
 <br />
 
